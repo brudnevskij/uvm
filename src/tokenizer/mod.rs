@@ -2,4 +2,4 @@ mod tokenizer;
 #[cfg(test)]
 mod tokenizer_tests;
 
-pub use tokenizer::{Tokenizer, Token, TokenType};
+pub use tokenizer::{Token, TokenType, Tokenizer};

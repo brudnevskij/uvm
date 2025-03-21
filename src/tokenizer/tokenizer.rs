@@ -6,7 +6,6 @@ pub enum TokenType {
     EOF,
 }
 
-
 #[derive(Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
@@ -27,7 +26,7 @@ pub struct Tokenizer<'a> {
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn new(input: &'a str) -> Tokenizer {
+    pub fn new(input: &'a str) -> Tokenizer<'a> {
         Tokenizer {
             input,
             position: 0,
@@ -77,7 +76,7 @@ impl<'a> Tokenizer<'a> {
         while !self.is_at_end() {
             if let Some(c) = self.peek() {
                 match c {
-                    ' ' | '\t' | '\n' | '\r'=> {
+                    ' ' | '\t' | '\n' | '\r' => {
                         self.advance();
                     }
                     '{' | '}' | ';' | '(' | ')' => {
@@ -97,9 +96,7 @@ impl<'a> Tokenizer<'a> {
                 }
             }
         }
-        tokens.push(
-            Token::new(TokenType::EOF, String::new()),
-        );
+        tokens.push(Token::new(TokenType::EOF, String::new()));
         Ok(tokens)
     }
 }
