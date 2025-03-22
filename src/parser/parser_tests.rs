@@ -26,7 +26,7 @@ fn test_parser_two_statements() {
 
     // Expected structure: (int main () (int a = 10 return 0))
     if let AstNode::List(root) = ast {
-        assert_eq!(root.len(), 4);  // int, main, params, and body list
+        assert_eq!(root.len(), 4); // int, main, params, and body list
 
         // Check function signature
         if let AstNode::Atom(token) = &root[0] {
@@ -43,7 +43,7 @@ fn test_parser_two_statements() {
 
         // Check body
         if let AstNode::List(body) = &root[3] {
-            assert_eq!(body.len(), 2);  // Two statements
+            assert_eq!(body.len(), 2); // Two statements
 
             // Check first statement: int a = 10
             if let AstNode::List(statement) = &body[0] {
@@ -98,7 +98,7 @@ fn test_parser_simple() {
 
     // Expected structure: (int main () (return 0))
     if let AstNode::List(root) = ast {
-        assert_eq!(root.len(), 4);  // int, main, and body list
+        assert_eq!(root.len(), 4); // int, main, and body list
 
         if let AstNode::Atom(token) = &root[0] {
             assert_eq!(token.lexeme, "int");
@@ -112,7 +112,7 @@ fn test_parser_simple() {
         }
 
         if let AstNode::List(body) = &root[3] {
-            assert_eq!(body.len(), 1);  // One statement
+            assert_eq!(body.len(), 1); // One statement
 
             if let AstNode::List(statement) = &body[0] {
                 assert_eq!(statement.len(), 2);
@@ -161,7 +161,7 @@ fn test_parse_with_func_call() {
 
     // Expected structure: (int main () (int a = 10 int b = (test) return 0))
     if let AstNode::List(root) = ast {
-        assert_eq!(root.len(), 4);  // int, main, and body list
+        assert_eq!(root.len(), 4); // int, main, and body list
 
         if let AstNode::Atom(token) = &root[0] {
             assert_eq!(token.lexeme, "int");
@@ -174,7 +174,7 @@ fn test_parse_with_func_call() {
             assert_eq!(list.len(), 0);
         }
         if let AstNode::List(body) = &root[3] {
-            assert_eq!(body.len(), 3);  // Three statements
+            assert_eq!(body.len(), 3); // Three statements
 
             // First statement: int a = 10
             if let AstNode::List(statement) = &body[0] {

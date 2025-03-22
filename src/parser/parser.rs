@@ -1,4 +1,6 @@
+use crate::parser::AstNode::{Atom, List};
 use crate::tokenizer::{Token, TokenType};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
@@ -10,8 +12,8 @@ pub enum AstNode {
 impl Display for AstNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AstNode::Atom(token) => write!(f, "{}", token.lexeme),
-            AstNode::List(l) => {
+            Atom(token) => write!(f, "{}", token.lexeme),
+            List(l) => {
                 write!(f, "(")?;
                 for (i, node) in l.iter().enumerate() {
                     if i > 0 {
@@ -68,7 +70,7 @@ impl<'a> Parser<'a> {
                 match token.token_type {
                     TokenType::Value => {
                         let new_token = Token::new(TokenType::Value, token.lexeme.clone());
-                        current_statement.push(AstNode::Atom(new_token));
+                        current_statement.push(Atom(new_token));
                         self.advance();
                     }
                     TokenType::Punctuation => match token.lexeme.as_str() {
@@ -83,7 +85,7 @@ impl<'a> Parser<'a> {
                             break;
                         }
                         ";" => {
-                            root_list.push(AstNode::List(current_statement));
+                            root_list.push(List(current_statement));
                             current_statement = Vec::new();
                             self.advance();
                         }
@@ -92,14 +94,14 @@ impl<'a> Parser<'a> {
                         }
                     },
                     TokenType::EOF => {
-                        root_list.push(AstNode::List(current_statement));
+                        root_list.push(List(current_statement));
                         current_statement = Vec::new();
                         self.advance();
                     }
                 }
             }
         }
-        Ok(AstNode::List(root_list))
+        Ok(List(root_list))
     }
 
     pub fn parse(&mut self) -> Result<AstNode, String> {
@@ -111,7 +113,7 @@ impl<'a> Parser<'a> {
                 match &t.token_type {
                     TokenType::Value => {
                         let new_token = Token::new(TokenType::Value, t.lexeme.to_string());
-                        current_statement.push(AstNode::Atom(new_token));
+                        current_statement.push(Atom(new_token));
                         self.advance();
                     }
                     TokenType::Punctuation => match t.lexeme.as_str() {
@@ -122,7 +124,7 @@ impl<'a> Parser<'a> {
                         }
                         ";" => {
                             // saving statement as sublist after termination
-                            root_list.push(AstNode::List(current_statement));
+                            root_list.push(List(current_statement));
                             current_statement = Vec::new();
                             self.advance();
                         }
@@ -139,6 +141,89 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Ok(AstNode::List(root_list))
+        Ok(List(root_list))
+    }
+}
+
+// shunting yard algorithm
+fn convert_to_rpn(statement: Vec<AstNode>) -> Result<Vec<AstNode>, String> {
+    let mut precedence: HashMap<&str, u32> = HashMap::new();
+    precedence.insert("+", 1);
+    precedence.insert("-", 1);
+    precedence.insert("*", 2);
+    precedence.insert("/", 2);
+    precedence.insert("=", 0);
+
+    let mut output: Vec<AstNode> = Vec::new();
+    let mut operator_stack: Vec<AstNode> = Vec::new();
+
+    for ast_node in statement {
+        match ast_node {
+            Atom(token) => {
+                // if known operator
+                if let Some(current_op_precedence) = precedence.get(&token.lexeme.as_str()) {
+                    while let Some(Atom(op)) = operator_stack.last() {
+                        let op_precedence =
+                            precedence.get(op.lexeme.as_str()).unwrap_or_else(|| &0);
+                        if op_precedence < current_op_precedence {
+                            break;
+                        }
+                        let op = operator_stack.pop().unwrap();
+                        output.push(op);
+                    }
+                    operator_stack.push(Atom(token));
+                } else {
+                    output.push(Atom(token));
+                }
+            }
+            List(_) => {
+                output.push(ast_node);
+            }
+        }
+    }
+
+    while !operator_stack.is_empty() {
+        if let Some(op) = operator_stack.pop() {
+            output.push(op);
+        } else {
+            break;
+        }
+    }
+    Ok(output)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::parser::parser::convert_to_rpn;
+    use crate::parser::AstNode::{Atom, List};
+    use crate::tokenizer::{Token, TokenType};
+
+    #[test]
+    fn convert_to_rpn_test_variable_declaration() {
+        let statement = vec![
+            Atom(Token::new(TokenType::Value, "int".to_string())),
+            Atom(Token::new(TokenType::Value, "a".to_string())),
+            Atom(Token::new(TokenType::Value, "=".to_string())),
+            Atom(Token::new(TokenType::Value, "1".to_string())),
+        ];
+        let converted_statement = convert_to_rpn(statement).unwrap();
+        println!("{}", List(converted_statement));
+    }
+
+    #[test]
+    fn convert_to_rpn_test_variable_expression() {
+        // int a = 10 + 33 * 7
+        let statement = vec![
+            Atom(Token::new(TokenType::Value, "int".to_string())),
+            Atom(Token::new(TokenType::Value, "a".to_string())),
+            Atom(Token::new(TokenType::Value, "=".to_string())),
+            Atom(Token::new(TokenType::Value, "10".to_string())),
+            Atom(Token::new(TokenType::Value, "+".to_string())),
+            Atom(Token::new(TokenType::Value, "33".to_string())),
+            Atom(Token::new(TokenType::Value, "*".to_string())),
+            Atom(Token::new(TokenType::Value, "7".to_string())),
+        ];
+        let converted_statement = convert_to_rpn(statement).unwrap();
+        println!("{}", List(converted_statement));
     }
 }
