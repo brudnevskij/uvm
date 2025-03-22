@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use crate::tokenizer::{Token, TokenType};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub enum AstNode {
@@ -41,7 +41,6 @@ impl<'a> Parser<'a> {
 
     fn is_at_end(&self) -> bool {
         self.position >= self.tokens.len()
-            || self.tokens[self.position].token_type == TokenType::EOF
     }
 
     fn peek(&self) -> Option<&Token> {
@@ -61,66 +60,80 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_list(&mut self) -> Result<AstNode, String> {
-        let mut list: Vec<AstNode> = Vec::new();
+        let mut root_list: Vec<AstNode> = Vec::new();
+        let mut current_statement: Vec<AstNode> = Vec::new();
+
         loop {
             if let Some(token) = self.peek() {
                 match token.token_type {
                     TokenType::Value => {
                         let new_token = Token::new(TokenType::Value, token.lexeme.clone());
-                        list.push(AstNode::Atom(new_token));
+                        current_statement.push(AstNode::Atom(new_token));
                         self.advance();
                     }
                     TokenType::Punctuation => match token.lexeme.as_str() {
                         "(" | "{" => {
                             self.advance();
                             let nested_list = self.parse_list()?;
-                            list.push(nested_list);
+                            current_statement.push(nested_list);
                         }
                         ")" | "}" => {
+                            root_list.append(&mut current_statement);
                             self.advance();
                             break;
                         }
                         ";" => {
+                            root_list.push(AstNode::List(current_statement));
+                            current_statement = Vec::new();
                             self.advance();
                         }
                         _ => {
-                            self.advance();
-                            break;
+                            // todo: consider returning error
                         }
                     },
-                    TokenType::EOF => break,
+                    TokenType::EOF => {
+                        root_list.push(AstNode::List(current_statement));
+                        current_statement = Vec::new();
+                        self.advance();
+                    }
                 }
             }
         }
-        Ok(AstNode::List(list))
+        Ok(AstNode::List(root_list))
     }
 
     pub fn parse(&mut self) -> Result<AstNode, String> {
         let mut root_list: Vec<AstNode> = Vec::new();
+        let mut current_statement: Vec<AstNode> = Vec::new();
 
         while !self.is_at_end() {
             if let Some(t) = self.peek() {
                 match &t.token_type {
                     TokenType::Value => {
                         let new_token = Token::new(TokenType::Value, t.lexeme.to_string());
-                        root_list.push(AstNode::Atom(new_token));
+                        current_statement.push(AstNode::Atom(new_token));
                         self.advance();
                     }
                     TokenType::Punctuation => match t.lexeme.as_str() {
                         "(" | "{" => {
                             self.advance();
                             let nested_list = self.parse_list()?;
-                            root_list.push(nested_list);
+                            current_statement.push(nested_list);
                         }
                         ";" => {
+                            // saving statement as sublist after termination
+                            root_list.push(AstNode::List(current_statement));
+                            current_statement = Vec::new();
                             self.advance();
                         }
                         _ => {
-                            self.advance();
+                            // todo: consider returning error
                         }
                     },
                     TokenType::EOF => {
-                        break;
+                        root_list.append(&mut current_statement);
+                        current_statement = Vec::new();
+                        self.advance();
                     }
                 }
             }
